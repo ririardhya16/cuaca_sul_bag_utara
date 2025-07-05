@@ -10,7 +10,7 @@ st.set_page_config(page_title="Prakiraan Cuaca Wilayah Sulawesi Bagian Utara", l
 
 # Judul Aplikasi dan Nama
 st.title("📡 Global Forecast System Viewer (Realtime via NOMADS)")
-st.markdown("<h4 style='text-align: center; font-style: italic;'>oleh: Riri Ardhya Febriani</h4>", unsafe_allow_html=True)
+st.markdown("<h4 style='text-align: center; font-style: italic;'>oleh: Riri Ardhya Febriani Meteorologi 8TB</h4>", unsafe_allow_html=True)
 st.header("Web Hasil Pembelajaran Pengelolaan Informasi Meteorologi")
 
 @st.cache_data

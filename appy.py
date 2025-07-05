@@ -67,17 +67,17 @@ if st.sidebar.button("🔎 Tampilkan Visualisasi"):
         st.warning("Parameter tidak dikenali.")
         st.stop()
 
-    # Filter wilayah Indonesia: 90 - 150 BT (lon), -15 - 15 LS/LU (lat)
-    var = var.sel(lat=slice(-15, 15), lon=slice(90, 150))
+    # Filter wilayah Indonesia: 118 - 126 BT (lon), -2 - 4 LS/LU (lat)
+    var = var.sel(lat=slice(-2, 4), lon=slice(118, 126))
 
     if is_vector:
-        u = u.sel(lat=slice(-4, 4), lon=slice(118, 126))
-        v = v.sel(lat=slice(-4, 4), lon=slice(118, 126))
+        u = u.sel(lat=slice(-2, 4), lon=slice(118, 126))
+        v = v.sel(lat=slice(-2, 4), lon=slice(118, 126))
 
     # Buat plot dengan cartopy
     fig = plt.figure(figsize=(10, 6))
     ax = plt.axes(projection=ccrs.PlateCarree())
-    ax.set_extent([118, 126, -4, 4], crs=ccrs.PlateCarree())
+    ax.set_extent([118, 126, -2, 4], crs=ccrs.PlateCarree())
 
     # Format waktu validasi
     valid_time = ds.time[forecast_hour].values

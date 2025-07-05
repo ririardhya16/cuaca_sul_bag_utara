@@ -8,7 +8,9 @@ from datetime import datetime
 
 st.set_page_config(page_title="Prakiraan Cuaca Wilayah Sulawesi Bagian Utara", layout="wide")
 
+# Judul Aplikasi
 st.title("📡 Global Forecast System Viewer (Realtime via NOMADS)")
+st.markdown("<h4 style='text-align: center; font-style: italic;'>oleh: Riri Ardhya Febriani</h4>", unsafe_allow_html=True)
 st.header("Web Hasil Pembelajaran Pengelolaan Informasi Meteorologi")
 
 @st.cache_data
@@ -17,6 +19,7 @@ def load_dataset(run_date, run_hour):
     ds = xr.open_dataset(base_url)
     return ds
 
+# Sidebar
 st.sidebar.title("⚙️ Pengaturan")
 
 # Input pengguna
@@ -67,46 +70,47 @@ if st.sidebar.button("🔎 Tampilkan Visualisasi"):
         st.warning("Parameter tidak dikenali.")
         st.stop()
 
-    # Filter wilayah Indonesia: 118 - 126 BT (lon), -2 - 4 LS/LU (lat)
+    # Subset wilayah Indonesia Timur: Sulawesi Utara (BT 118–126, LS/LU -2 sampai 4)
     var = var.sel(lat=slice(-2, 4), lon=slice(118, 126))
 
     if is_vector:
         u = u.sel(lat=slice(-2, 4), lon=slice(118, 126))
         v = v.sel(lat=slice(-2, 4), lon=slice(118, 126))
 
-    # Buat plot dengan cartopy
+    # Buat plot Cartopy
     fig = plt.figure(figsize=(10, 6))
     ax = plt.axes(projection=ccrs.PlateCarree())
     ax.set_extent([118, 126, -2, 4], crs=ccrs.PlateCarree())
 
-    # Format waktu validasi
+    # Waktu validasi
     valid_time = ds.time[forecast_hour].values
     valid_dt = pd.to_datetime(str(valid_time))
     valid_str = valid_dt.strftime("%HUTC %a %d %b %Y")
     tstr = f"t+{forecast_hour:03d}"
 
-    title_left = f"{label}Valid {valid_str}"
-    title_right = f"GFS{tstr}"
+    title_left = f"{label} - Valid {valid_str}"
+    title_right = f"GFS {tstr}"
 
     ax.set_title(title_left, loc="left", fontsize=10, fontweight="bold")
     ax.set_title(title_right, loc="right", fontsize=10, fontweight="bold")
 
     if is_contour:
-        cs = ax.contour(var.lon, var.lat, var.values, levels=15, colors='black', linewidths=0.8, transform=ccrs.PlateCarree())
+        cs = ax.contour(var.lon, var.lat, var.values, levels=15, colors='black',
+                        linewidths=0.8, transform=ccrs.PlateCarree())
         ax.clabel(cs, fmt="%d", colors='black', fontsize=8)
-        
     else:
         im = ax.pcolormesh(var.lon, var.lat, var.values,
-                   cmap=cmap, vmin=0, vmax=50,
-                   transform=ccrs.PlateCarree())
+                           cmap=cmap, vmin=0, vmax=50,
+                           transform=ccrs.PlateCarree())
         cbar = plt.colorbar(im, ax=ax, orientation='vertical', pad=0.02)
         cbar.set_label(label)
         if is_vector:
             ax.quiver(var.lon[::5], var.lat[::5],
                       u.values[::5, ::5], v.values[::5, ::5],
-                      transform=ccrs.PlateCarree(), scale=700, width=0.002, color='black')
-        
-    # Tambah fitur peta
+                      transform=ccrs.PlateCarree(), scale=700,
+                      width=0.002, color='black')
+
+    # Tambahan peta
     ax.coastlines(resolution='10m', linewidth=0.8)
     ax.add_feature(cfeature.BORDERS, linestyle=':')
     ax.add_feature(cfeature.LAND, facecolor='lightgray')

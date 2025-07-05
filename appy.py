@@ -71,13 +71,13 @@ if st.sidebar.button("🔎 Tampilkan Visualisasi"):
     var = var.sel(lat=slice(-15, 15), lon=slice(90, 150))
 
     if is_vector:
-        u = u.sel(lat=slice(0, 4), lon=slice(118, 126))
-        v = v.sel(lat=slice(0, 4), lon=slice(118, 126))
+        u = u.sel(lat=slice(-4, 4), lon=slice(118, 126))
+        v = v.sel(lat=slice(-4, 4), lon=slice(118, 126))
 
     # Buat plot dengan cartopy
     fig = plt.figure(figsize=(10, 6))
     ax = plt.axes(projection=ccrs.PlateCarree())
-    ax.set_extent([118, 126, 0, 4], crs=ccrs.PlateCarree())
+    ax.set_extent([118, 126, -4, 4], crs=ccrs.PlateCarree())
 
     # Format waktu validasi
     valid_time = ds.time[forecast_hour].values

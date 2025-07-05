@@ -8,9 +8,14 @@ from datetime import datetime
 
 st.set_page_config(page_title="Prakiraan Cuaca Wilayah Sulawesi Bagian Utara", layout="wide")
 
-# Judul Aplikasi dan Nama
+# Judul dan identitas
 st.title("📡 Global Forecast System Viewer (Realtime via NOMADS)")
-st.markdown("<h4 style='text-align: center; font-style: italic;'>oleh: Riri Ardhya Febriani Meteorologi 8TB</h4>", unsafe_allow_html=True)
+st.markdown("""
+<div style='text-align: center; font-style: italic;'>
+    <h4>oleh: Riri Ardhya Febriani</h4>
+    <p>NPT: 14.24.0009 | Kelas: Meteorologi 8TB</p>
+</div>
+""", unsafe_allow_html=True)
 st.header("Web Hasil Pembelajaran Pengelolaan Informasi Meteorologi")
 
 @st.cache_data
@@ -19,7 +24,7 @@ def load_dataset(run_date, run_hour):
     ds = xr.open_dataset(base_url)
     return ds
 
-# Sidebar Pengaturan
+# Sidebar input
 st.sidebar.title("⚙️ Pengaturan")
 today = datetime.utcnow()
 run_date = st.sidebar.date_input("Tanggal Run GFS (UTC)", today.date())
@@ -68,18 +73,18 @@ if st.sidebar.button("🔎 Tampilkan Visualisasi"):
         st.warning("Parameter tidak dikenali.")
         st.stop()
 
-    # Subset area Sulawesi Utara
+    # Area subset Sulawesi Utara
     var = var.sel(lat=slice(-2, 4), lon=slice(118, 126))
     if is_vector:
         u = u.sel(lat=slice(-2, 4), lon=slice(118, 126))
         v = v.sel(lat=slice(-2, 4), lon=slice(118, 126))
 
-    # Inisialisasi peta
+    # Visualisasi dengan Cartopy
     fig = plt.figure(figsize=(10, 6))
     ax = plt.axes(projection=ccrs.PlateCarree())
     ax.set_extent([118, 126, -2, 4], crs=ccrs.PlateCarree())
 
-    # Validasi waktu
+    # Format waktu
     valid_time = ds.time[forecast_hour].values
     valid_dt = pd.to_datetime(str(valid_time))
     valid_str = valid_dt.strftime("%HUTC %a %d %b %Y")
@@ -87,7 +92,6 @@ if st.sidebar.button("🔎 Tampilkan Visualisasi"):
     ax.set_title(f"{label} - Valid {valid_str}", loc="left", fontsize=10, fontweight="bold")
     ax.set_title(f"GFS {tstr}", loc="right", fontsize=10, fontweight="bold")
 
-    # Plot utama
     if is_contour:
         cs = ax.contour(var.lon, var.lat, var.values, levels=15, colors='black',
                         linewidths=0.8, transform=ccrs.PlateCarree())
@@ -100,7 +104,7 @@ if st.sidebar.button("🔎 Tampilkan Visualisasi"):
             ax.quiver(var.lon[::5], var.lat[::5], u.values[::5, ::5], v.values[::5, ::5],
                       transform=ccrs.PlateCarree(), scale=700, width=0.002, color='black')
 
-    # Tambahkan penanda lokasi
+    # Lokasi kota
     kota = {
         "Gorontalo": (0.537, 123.056),
         "Manado": (1.4748, 124.8421),
@@ -112,7 +116,7 @@ if st.sidebar.button("🔎 Tampilkan Visualisasi"):
         ax.text(lon + 0.1, lat + 0.1, nama, transform=ccrs.PlateCarree(),
                 fontsize=8, fontweight='bold', color='red')
 
-    # Tambahan geospasial
+    # Fitur geospasial tambahan
     ax.coastlines(resolution='10m', linewidth=0.8)
     ax.add_feature(cfeature.BORDERS, linestyle=':')
     ax.add_feature(cfeature.LAND, facecolor='lightgray')

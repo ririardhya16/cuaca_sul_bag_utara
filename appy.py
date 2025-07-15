@@ -18,19 +18,18 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.header("Web Hasil Pembelajaran Pengelolaan Informasi Meteorologi")
 
-# Fungsi untuk load data
-@st.cache_data(show_spinner=True)
+@st.cache_data
 def load_dataset(run_date, run_hour):
-    base_url = f"https://nomads.ncep.noaa.gov/dods/gfs_0p25_1hr/gfs{run_date}/gfs_0p25_1hr_{run_hour}z"
-    try:
-        ds = xr.open_dataset(base_url)
-        return ds
-    except Exception as e:
-        st.error(f"Gagal membuka dataset dari NOMADS: {e}")
-        return None
+    # Gunakan port 443 sebagai gantinya — port 9090 sudah diblok oleh NOAA :contentReference[oaicite:1]{index=1}
+    base_url = (
+        f"https://nomads.ncep.noaa.gov/dods/gfs_0p25_1hr/"
+        f"gfs{run_date}/gfs_0p25_1hr_{run_hour}z"
+    )
+    ds = xr.open_dataset(base_url, decode_times=True)
+    return ds
 
-# Sidebar input
-st.sidebar.title("⚙️ Pengaturan")
+# Input dari sidebar
+st.sidebar.title("⚙ Pengaturan")
 today = datetime.utcnow()
 run_date = st.sidebar.date_input("Tanggal Run GFS (UTC)", today.date())
 run_hour = st.sidebar.selectbox("Jam Run GFS (UTC)", ["00", "06", "12", "18"])
@@ -43,88 +42,81 @@ parameter = st.sidebar.selectbox("Parameter", [
 ])
 
 if st.sidebar.button("🔎 Tampilkan Visualisasi"):
-    ds = load_dataset(run_date.strftime("%Y%m%d"), run_hour)
-    if ds is None:
+    try:
+        ds = load_dataset(run_date.strftime("%Y%m%d"), run_hour)
+        st.success("Dataset berhasil dimuat.")
+    except Exception as e:
+        st.error(f"Gagal memuat data: {e}")
         st.stop()
 
+    # Pilih variabel sesuai parameter
     is_contour = False
     is_vector = False
 
     if "pratesfc" in parameter:
-        var = ds["pratesfc"][forecast_hour, :, :] * 3600
-        label = "Curah Hujan (mm/jam)"
-        cmap = "Blues"
+        var = ds["pratesfc"][forecast_hour] * 3600
+        label, cmap = "Curah Hujan (mm/jam)", "Blues"
     elif "tmp2m" in parameter:
-        var = ds["tmp2m"][forecast_hour, :, :] - 273.15
-        label = "Suhu (°C)"
-        cmap = "coolwarm"
+        var = ds["tmp2m"][forecast_hour] - 273.15
+        label, cmap = "Suhu (°C)", "coolwarm"
     elif "ugrd10m" in parameter:
-        u = ds["ugrd10m"][forecast_hour, :, :]
-        v = ds["vgrd10m"][forecast_hour, :, :]
-        speed = (u**2 + v**2)**0.5 * 1.94384
-        var = speed
-        label = "Kecepatan Angin (knot)"
-        cmap = plt.cm.get_cmap("RdYlGn_r", 10)
+        u = ds["ugrd10m"][forecast_hour]
+        v = ds["vgrd10m"][forecast_hour]
+        var = (u*2 + v2)*0.5 * 1.94384
+        label, cmap = "Kecepatan Angin (knot)", plt.cm.get_cmap("RdYlGn_r", 10)
         is_vector = True
     elif "prmsl" in parameter:
-        var = ds["prmslmsl"][forecast_hour, :, :] / 100
-        label = "Tekanan Permukaan Laut (hPa)"
-        cmap = "cool"
+        var = ds["prmslmsl"][forecast_hour] / 100
+        label, cmap = "Tekanan Permukaan Laut (hPa)", "cool"
         is_contour = True
     else:
         st.warning("Parameter tidak dikenali.")
         st.stop()
 
-    # Subset wilayah Sulawesi Utara
+    # Subset Sulawesi Utara
     var = var.sel(lat=slice(-2, 4), lon=slice(118, 126))
     if is_vector:
         u = u.sel(lat=slice(-2, 4), lon=slice(118, 126))
         v = v.sel(lat=slice(-2, 4), lon=slice(118, 126))
 
-    # Visualisasi menggunakan Cartopy
+    # Visualisasi
     fig = plt.figure(figsize=(10, 6))
     ax = plt.axes(projection=ccrs.PlateCarree())
-    ax.set_extent([118, 126, -2, 4], crs=ccrs.PlateCarree())
+    ax.set_extent([118, 126, -2, 4], ccrs.PlateCarree())
 
-    # Format waktu
-    try:
-        valid_time = ds.time[forecast_hour].values
-        valid_dt = pd.to_datetime(str(valid_time))
-        valid_str = valid_dt.strftime("%HUTC %a %d %b %Y")
-    except:
-        valid_str = f"t+{forecast_hour:03d}"
-
-    tstr = f"t+{forecast_hour:03d}"
-    ax.set_title(f"{label} - Valid {valid_str}", loc="left", fontsize=10, fontweight="bold")
-    ax.set_title(f"GFS {tstr}", loc="right", fontsize=10, fontweight="bold")
+    valid_dt = pd.to_datetime(ds.time[forecast_hour].values)
+    valid_str = valid_dt.strftime("%HUTC %a %d %b %Y")
+    ax.set_title(f"{label} – Valid {valid_str}", loc="left", fontsize=10, fontweight="bold")
+    ax.set_title(f"GFS t+{forecast_hour:03d}", loc="right", fontsize=10, fontweight="bold")
 
     if is_contour:
-        cs = ax.contour(var.lon, var.lat, var.values, levels=15, colors='black',
-                        linewidths=0.8, transform=ccrs.PlateCarree())
-        ax.clabel(cs, fmt="%d", colors='black', fontsize=8)
+        cs = ax.contour(var.lon, var.lat, var.values, levels=15,
+                        colors="black", linewidths=0.8, transform=ccrs.PlateCarree())
+        ax.clabel(cs, fmt="%d", colors="black", fontsize=8)
     else:
-        im = ax.pcolormesh(var.lon, var.lat, var.values, cmap=cmap, transform=ccrs.PlateCarree())
-        cbar = plt.colorbar(im, ax=ax, orientation='vertical', pad=0.02)
+        im = ax.pcolormesh(var.lon, var.lat, var.values,
+                           cmap=cmap, vmin=0 if "Curah" in label else None,
+                           transform=ccrs.PlateCarree())
+        cbar = plt.colorbar(im, ax=ax, orientation="vertical", pad=0.02)
         cbar.set_label(label)
         if is_vector:
-            ax.quiver(var.lon[::5], var.lat[::5], u.values[::5, ::5], v.values[::5, ::5],
-                      transform=ccrs.PlateCarree(), scale=700, width=0.002, color='black')
+            ax.quiver(var.lon[::5], var.lat[::5],
+                      u.values[::5, ::5], v.values[::5, ::5],
+                      transform=ccrs.PlateCarree(), scale=700,
+                      width=0.002, color="black")
 
-    # Kota-kota penting
-    kota = {
-        "Gorontalo": (0.537, 123.056),
-        "Manado": (1.4748, 124.8421),
-        "Palu": (-0.8917, 119.8707)
-    }
-
+    # Menandai kota
+    kota = {"Gorontalo": (0.537, 123.056),
+            "Manado": (1.4748, 124.8421),
+            "Palu": (-0.8917, 119.8707)}
     for nama, (lat, lon) in kota.items():
-        ax.plot(lon, lat, marker='o', color='red', markersize=5, transform=ccrs.PlateCarree())
-        ax.text(lon + 0.1, lat + 0.1, nama, transform=ccrs.PlateCarree(),
-                fontsize=8, fontweight='bold', color='red')
+        ax.plot(lon, lat, "ro", markersize=5, transform=ccrs.PlateCarree())
+        ax.text(lon+0.1, lat+0.1, nama,
+                transform=ccrs.PlateCarree(),
+                fontsize=8, fontweight="bold", color="red")
 
-    # Tambahan fitur geospasial
-    ax.coastlines(resolution='10m', linewidth=0.8)
-    ax.add_feature(cfeature.BORDERS, linestyle=':')
-    ax.add_feature(cfeature.LAND, facecolor='lightgray')
+    ax.coastlines(resolution="10m", linewidth=0.8)
+    ax.add_feature(cfeature.BORDERS, linestyle=":")
+    ax.add_feature(cfeature.LAND, facecolor="lightgray")
 
     st.pyplot(fig)
